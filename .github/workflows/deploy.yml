@@ -1,32 +1,25 @@
 name: Despliegue completo del código
-
 on:
   push:
     branches:
       - master
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v3
-
     - name: Autenticación en GCP
       id: auth
       uses: google-github-actions/auth@v1
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
-
     - name: Setup gcloud
       uses: google-github-actions/setup-gcloud@v1
-
     - name: Build and Push Docker Image to Artifact Registry
       run: |
         docker build -t us-central1-docker.pkg.dev/${{ steps.auth.outputs.project_id }}/gcr-compat/clientes-api ./java-service
         gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
         docker push us-central1-docker.pkg.dev/${{ steps.auth.outputs.project_id }}/gcr-compat/clientes-api
-
     - name: Deploy to Cloud Run
       run: |
         gcloud run deploy clientes-api \
@@ -36,12 +29,11 @@ jobs:
         --allow-unauthenticated \
         --service-account=github-deployer@${{ steps.auth.outputs.project_id }}.iam.gserviceaccount.com \
         --set-env-vars=DB_HOST=${{ steps.auth.outputs.project_id }}:us-central1:clientes-db,DB_USER=admin,DB_PASSWORD=admin1234
-
     - name: Copiar index.html a la VM
       run: |
         echo "$SSH_PRIVATE_KEY" > key.pem
         chmod 600 key.pem
-        scp -o StrictHostKeyChecking=no -i key.pem web/index.html debian@<IP_EXTERNA_VM>:/tmp/index.html
-        ssh -o StrictHostKeyChecking=no -i key.pem debian@<IP_EXTERNA_VM> "sudo mv /tmp/index.html /var/www/html/index.html"
+        scp -o StrictHostKeyChecking=no -i key.pem web/index.html debian@34.41.242.99:/tmp/index.html
+        ssh -o StrictHostKeyChecking=no -i key.pem debian@34.41.242.99 "sudo mv /tmp/index.html /var/www/html/index.html"
       env:
         SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
